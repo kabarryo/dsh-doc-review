@@ -1,0 +1,65 @@
+{
+  "name": "dsh-doc-review",
+  "version": "0.1.0",
+  "description": "DSH sidebar annotations for Word/PDF previews with batch submission, plus a declarative docx edit helper with atomic rewrite and failure logging.",
+  "license": "MIT",
+  "author": "kabarryo",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE",
+    "scripts"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "plugin",
+    "annotation",
+    "docx",
+    "review",
+    "excel",
+    "sidebar"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-slots",
+        "@deepseek-ai/dsh-client-ui-session",
+        "@deepseek-ai/dsh-client-ui-conversation"
+      ],
+      "platform": "web"
+    },
+    "engines": {
+      "dsh": ">=0.2.0-rc.1"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-client-ui-slots": "*",
+    "@deepseek-ai/dsh-client-ui-session": "*",
+    "@deepseek-ai/dsh-client-ui-conversation": "*",
+    "react": "*"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kabarryo/dsh-doc-review.git"
+  },
+  "homepage": "https://github.com/kabarryo/dsh-doc-review#readme",
+  "bugs": {
+    "url": "https://github.com/kabarryo/dsh-doc-review/issues"
+  }
+}

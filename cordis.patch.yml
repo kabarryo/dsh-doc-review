@@ -1,0 +1,5 @@
+# dsh-doc-review bundle patch: mounts the plugin row; the client half is
+# discovered from package.json's dsh.client metadata.
+- insert:
+    - id: dsh-doc-review
+      name: dsh-doc-review
