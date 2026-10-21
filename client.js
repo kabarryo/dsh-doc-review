@@ -207,8 +207,13 @@ window.__ModuleLoader__.load({
     }
 
     function buildMessage(path, comments) {
+      const sheetMode = SHEET_RE.test(path)
+      const helperName = sheetMode ? 'xlsx_edit.py' : 'docx_edit.py'
+      const helperOps = sheetMode
+        ? 'op 支持 set_cell / replace_text / set_format；set_cell 用 expect 传批注里的现值做校验，不符会拒绝写入'
+        : 'op 支持 replace / delete / set_font / set_color / set_paragraph_style，可用 all 和 occurrence'
       const lines = [
-        '【批注修改任务 · dsh-doc-review v1.5】',
+        '【批注修改任务 · dsh-doc-review v1.6】',
         `文件：${path}`,
         `批注：${comments.length} 条`,
         '预览：提交时已在右侧栏打开，修改后自动刷新；完成后不要调用 present，报告里给出文件路径即可。',
@@ -231,12 +236,14 @@ window.__ModuleLoader__.load({
         '执行约定（仅约束本次文件修改的操作方式；内容与文风仍遵循当前模式，安全、权限与审批遵循宿主）：',
         '0. 需求已由批注确认，不重复提纲、方案确认或先例检索，直接修改。',
         '1. 只改批注涉及的内容，不顺手优化其他段落；只读目标文件，不浏览工作区其他文件，不检索记忆或知识库。',
-        '2. 第一步就是运行 `~/.dsh/doc-review/bin/docx_edit.py`：--file 目标文件，--ops 传内联 JSON 或 ops 文件（op 支持 replace / delete / set_font / set_color / set_paragraph_style，可用 all 和 occurrence）。它内部完成 hash、备份、扫描、修改、回读；在此之前不运行 ls、cat 或单独的检查命令。不要再写临时脚本；只有 helper 返回 unsupported 时才写一次性脚本。',
+        `2. 第一步就是运行 \`~/.dsh/doc-review/bin/${helperName}\`：--file 目标文件，--ops 传内联 JSON 或 ops 文件（${helperOps}）。它内部完成 hash、备份、扫描、修改、回读${sheetMode ? '、部件守恒检查' : ''}；在此之前不运行 ls、cat 或单独的检查命令。不要再写临时脚本；只有 helper 返回 unsupported 时才写一次性脚本。`,
         '3. helper 只输出摘要：hash、备份名、命中段落号、改动摘要、校验结果；不要把全部段落或 XML 打印出来。',
         '4. 先写临时文件，全部断言通过后再原子替换；中途失败原文件不变。',
         '5. 引文先去空白再匹配；多命中按页码与上下文择一，仍不唯一则报“未找到/有歧义”，不猜。',
         '6. 保留原样式、字体、编号、表格、页眉页脚；新增文字与上下文风格一致，不主动改文风。',
-        '7. Excel 按 sheet!cell + 现值 + 相邻单元格定位；保留公式与样式，不重算、不导出。',
+        sheetMode
+          ? '7. Excel 按 sheet!cell + expect 现值定位；保留公式与样式，不重算、不导出。helper 返回 sheet_protected 时先问用户是否加 --allow-protected 重试，不得自行加。'
+          : '7. Excel 按 sheet!cell + 现值 + 相邻单元格定位；保留公式与样式，不重算、不导出。',
         '8. 不做渲染验证（不启动 WPS/qlmanage/textutil）；用回读断言校验。',
         '9. 措辞歧义按最小改动处理并说明；事实、口径、范围、权限不清才提问。',
         '10. 目标已是所需状态时报告“已是目标状态”，不重复修改。',

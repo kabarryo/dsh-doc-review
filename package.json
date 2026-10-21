@@ -1,7 +1,7 @@
 {
   "name": "dsh-doc-review",
-  "version": "0.1.0",
-  "description": "DSH sidebar annotations for Word/PDF previews with batch submission, plus a declarative docx edit helper with atomic rewrite and failure logging.",
+  "version": "0.2.0",
+  "description": "DSH sidebar annotations for Word/PDF previews with batch submission, plus declarative docx/xlsx edit helpers with atomic rewrite and failure logging.",
   "license": "MIT",
   "author": "kabarryo",
   "type": "module",

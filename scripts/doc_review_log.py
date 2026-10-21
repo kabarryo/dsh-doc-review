@@ -58,15 +58,17 @@ def ops_summary(raw) -> list[dict]:
     for item in raw if isinstance(raw, list) else []:
         if not isinstance(item, dict):
             continue
-        summary.append(
-            {
-                "op": item.get("op") or item.get("type"),
-                "scope": item.get("scope"),
-                "find": clip(item.get("find"), 120),
-                "replace": clip(item.get("replace") or item.get("text"), 120),
-                "all": bool(item.get("all")),
-            }
-        )
+        entry = {
+            "op": item.get("op") or item.get("type"),
+            "sheet": clip(item.get("sheet"), 120),
+            "cell": clip(item.get("cell") or item.get("range"), 120),
+            "scope": clip(item.get("scope"), 120),
+            "find": clip(item.get("find"), 120),
+            "replace": clip(item.get("replace") or item.get("text"), 120),
+            "value": clip(item.get("value"), 120),
+            "all": bool(item.get("all")),
+        }
+        summary.append({key: value for key, value in entry.items() if value is not None})
     return summary
 
 

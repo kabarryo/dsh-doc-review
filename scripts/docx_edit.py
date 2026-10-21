@@ -51,6 +51,14 @@ except Exception:  # pragma: no cover - logger is optional at runtime
         return None
 
 
+def _compact_ops(ops):
+    try:
+        from doc_review_log import ops_summary
+        return ops_summary(ops)
+    except Exception:
+        return None
+
+
 def safe_log(**kwargs):
     """Logging must never fail or undo a successful edit."""
     try:
@@ -353,7 +361,7 @@ def main() -> None:
 
     started = time.monotonic()
     path = Path(args.file).expanduser().resolve()
-    contract = args.contract or "v1.5"
+    contract = args.contract or "v1.6"
     try:
         if not path.is_file():
             raise EditError("file_error", f"文件不存在：{path}", "preflight")
@@ -391,7 +399,7 @@ def main() -> None:
             file=str(path),
             file_hash=before_digest,
             duration_ms=int((time.monotonic() - started) * 1000),
-            ops=ops,
+            ops=_compact_ops(ops),
         )
         if args.as_json:
             print(json.dumps(result, ensure_ascii=False, indent=2))
@@ -426,7 +434,7 @@ def main() -> None:
             code=exc.code,
             reason=str(exc),
             duration_ms=int((time.monotonic() - started) * 1000),
-            ops=ops if "ops" in locals() else None,
+            ops=_compact_ops(ops) if "ops" in locals() else None,
             note=json.dumps(exc.details, ensure_ascii=False) if exc.details else None,
         )
         print(f"ERROR [{exc.code}] {exc}", file=sys.stderr)
@@ -442,7 +450,7 @@ def main() -> None:
             code="exception",
             reason=f"{type(exc).__name__}: {exc}",
             duration_ms=int((time.monotonic() - started) * 1000),
-            ops=ops if "ops" in locals() else None,
+            ops=_compact_ops(ops) if "ops" in locals() else None,
         )
         print(f"ERROR [exception] {type(exc).__name__}: {exc}", file=sys.stderr)
         raise SystemExit(5)

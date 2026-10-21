@@ -18,8 +18,8 @@ DSH 侧栏批注插件。在 Word/PDF 预览中选中文字写修改意见，可
 ## 工作原理
 
 1. 插件在预览头部注册“批注”按钮；只有文件已在侧边栏打开时才会出现。
-2. 提交时把批注拼成一条带任务协议的消息（当前 `v1.5`），协议限定在操作层，内容与文风仍交给当前模式。
-3. agent 运行 `~/.dsh/doc-review/bin/docx_edit.py`，一次完成 hash、备份、扫描、修改、回读与原子替换；helper 不支持的结构直接返回 `unsupported`，不猜。
+2. 提交时把批注拼成一条带任务协议的消息（当前 `v1.6`），协议限定在操作层，内容与文风仍交给当前模式。
+3. agent 按扩展名选择 helper：docx 用 `docx_edit.py`，xlsx/xlsm 用 `xlsx_edit.py`，一次完成 hash、备份、扫描、修改、回读与原子替换；helper 不支持的结构直接返回 `unsupported`，不猜。
 4. 修改完成后预览自动刷新；消息声明预览已打开，因此默认不调用 `present`。
 
 协议与模式无关：standard、文稿或自定义 preset 都能用，不依赖任何技能或人格。
@@ -63,7 +63,7 @@ DSH_PROFILE_DIR="$HOME/.dsh/profiles/desktop" bash install.sh
 提交的消息形如：
 
 ```
-【批注修改任务 · dsh-doc-review v1.5】
+【批注修改任务 · dsh-doc-review v1.6】
 文件：/path/to/文件.docx
 批注：2 条
 
@@ -96,6 +96,31 @@ docx_edit.py --file "目标.docx" --ops '[{"op":"replace","find":"一、建设�
 
 内部完成 hash、备份、结构扫描、定位、修改、回读校验与原子替换；只允许正文段落与表格，页眉页脚、文本框、修订痕迹、域、内容控件一律拒绝。退出码：0 成功，2 未找到/歧义，3 不支持，4 校验失败，5 文件/异常。
 
+## xlsx_edit.py
+
+声明式修改 xlsx/xlsm，替代一次性脚本。
+
+```bash
+xlsx_edit.py --file "台账.xlsx" --ops '[{"op":"set_cell","sheet":"数据","cell":"B2","value":"999","expect":"100"}]'
+```
+
+| op | 参数 |
+|---|---|
+| `set_cell` | `sheet`、`cell`、`value`、`expect`（现值哨兵）、`value_type`（`auto`/`string`/`number`/`bool`/`formula`/`date`） |
+| `replace_text` | `sheet`、`find`、`replace`、`range`、`all`、`occurrence` |
+| `set_format` | `sheet`、`cell` 或 `range`、`font`、`size`、`color`、`bold`、`italic`、`underline`、`number_format`、`align`、`wrap` |
+
+`value_type: auto` 的规则：`=` 开头按公式；`12%` 按数值 0.12；纯数字按数值（前导零如 `001` 保持文本）；`TRUE/FALSE` 按布尔；日期格式单元格 + ISO 日期按日期；其余按文本。
+
+内部完成预检、hash、备份、定位、修改、回读校验、zip 部件守恒检查与原子替换：
+
+- 除被操作单元格外，所有公式必须逐一保持不变，否则回滚；
+- 存盘后任何部件消失（透视表、切片器、VBA 等）即放弃写入；
+- 合并非左上角、数组公式、加密或损坏文件直接拒绝，并给出可用表名或左上角地址；
+- 受保护工作表默认拒绝，返回 `sheet_protected`；用户确认后才能加 `--allow-protected` 重试。
+
+退出码与 docx helper 一致：0 成功，2 未找到/歧义/现值不符，3 不支持/受保护，4 校验失败，5 文件/异常。
+
 ## 失败与回退日志
 
 辅助脚本与 agent 的失败、回退、人工介入会写入：
@@ -123,12 +148,24 @@ python3 ~/.dsh/doc-review/bin/doc_review_log.py tail --n 20
 ## 限制
 
 - 只处理 docx 正文段落与表格；页眉页脚、文本框、修订、域、内容控件拒绝修改。
+- Excel 只做单元格值、单元格内文本替换与格式；行列增删、跨表引用迁移不支持。
+- openpyxl 存盘会清空公式缓存值（已设 `fullCalcOnLoad`，Excel/WPS 打开时重算）；预览里公式可能显示空白。
+- 含图表/图片的工作簿会被 openpyxl 重新序列化绘图部件，部件守恒但版式可能有细微变化。
+- `.xlsm` 以 `keep_vba=True` 处理；`.xls`、`.csv` 需先另存为 xlsx。
 - Excel 需要手填单元格地址，预览的选中状态尚未暴露给插件。
 - 扫描版 PDF 没有文字层，选不中。
 - 批注按绝对路径持久化，跨文件不迁移；文件内容大改后引文可能定位失败。
 - 不跟踪“已解决”状态，以 agent 的修改报告为准。
 - 依赖预览插件的 DOM 标记（`data-pdf-preview`、`data-pdf-page`、`data-textpreview-body`），上游大改时需要同步。
 - 默认沙箱下 central 日志可能不可写，日志会分散在各工作区的回退目录。
+
+## 测试
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
+`tests/make_fixtures.py` 生成含公式、图表、图片、合并、数据验证、条件格式、批注、表格、定义名称、保护与隐藏工作表的工作簿；`tests/test_xlsx_edit.py` 覆盖写入、现值不符、歧义、合并区、格式、受保护表、dry-run、无变化、日志与部件守恒。
 
 ## 卸载
 
@@ -141,8 +178,8 @@ rm ~/.dsh/profiles/web/node_modules/dsh-doc-review
 
 ## 版本与变更
 
-- 插件版本：`0.1.0`
-- 批注任务协议：`v1.5`
+- 插件版本：`0.2.0`
+- 批注任务协议：`v1.6`
 - 变更记录：GitHub Releases
 
 ## 许可证
