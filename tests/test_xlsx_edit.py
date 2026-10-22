@@ -238,6 +238,55 @@ class HelperCase(unittest.TestCase):
         self.assertEqual(list(self.simple.parent.glob("simple.bak-*.xlsx")), [])
 
     # -- refusals --------------------------------------------------------
+    def test_unknown_format_field(self) -> None:
+        digest = self.digest(self.simple)
+        result = self.run_helper(
+            self.simple,
+            [{"op": "set_format", "sheet": "Sheet1", "cell": "C4", "font_color": "FF0000"}],
+        )
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("bad_request", result.stderr)
+        self.assertIn("font_color", result.stderr)
+        self.assertIn("supported_fields", result.stderr)
+        self.assertEqual(self.digest(self.simple), digest)
+
+    def test_sheet_prefixed_address(self) -> None:
+        result = self.run_helper(
+            self.simple,
+            [{"op": "set_cell", "cell": "Sheet1!C4", "value": "7"},
+             {"op": "replace_text", "range": "Sheet1!B2:B2", "find": "2025年度", "replace": "2026年度"}],
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        sheet = load_workbook(self.simple)["Sheet1"]
+        self.assertEqual(sheet["C4"].value, 7)
+        self.assertEqual(sheet["B2"].value, "2026年度")
+        self.assertEqual(sheet["B3"].value, "2025年度")
+
+    def test_sheet_conflict_rejected(self) -> None:
+        result = self.run_helper(
+            self.simple,
+            [{"op": "set_cell", "sheet": "Sheet1", "cell": "其他!C4", "value": "7"}],
+        )
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("bad_request", result.stderr)
+
+    def test_multiline_inline_ops(self) -> None:
+        env = dict(os.environ, DOC_REVIEW_HOME=str(self.home))
+        ops = json.dumps(
+            [{"op": "set_cell", "sheet": "Sheet1", "cell": "C4", "value": "7"},
+             {"op": "set_cell", "sheet": "Sheet1", "cell": "B2", "value": "2026年度"}],
+            ensure_ascii=False, indent=2,
+        )
+        self.assertIn("\n", ops)
+        result = subprocess.run(
+            [sys.executable, str(HELPER), "--file", str(self.simple), "--ops", ops],
+            capture_output=True, text=True, env=env,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        sheet = load_workbook(self.simple)["Sheet1"]
+        self.assertEqual(sheet["C4"].value, 7)
+        self.assertEqual(sheet["B2"].value, "2026年度")
+
     def test_unknown_op(self) -> None:
         result = self.run_helper(self.simple, [{"op": "insert_row", "sheet": "Sheet1", "row": 3}])
         self.assertEqual(result.returncode, 3, result.stderr)

@@ -210,7 +210,7 @@ window.__ModuleLoader__.load({
       const sheetMode = SHEET_RE.test(path)
       const helperName = sheetMode ? 'xlsx_edit.py' : 'docx_edit.py'
       const helperOps = sheetMode
-        ? 'op 支持 set_cell / replace_text / set_format；set_cell 用 expect 传批注里的现值做校验，不符会拒绝写入'
+        ? 'op 支持 set_cell / replace_text / set_format；字段：set_cell=cell/value/expect，replace_text=find/replace/range/all，set_format=font/size/color/bold/italic/underline/number_format/align/wrap；set_cell 用 expect 传批注里的现值做校验。示例：[{"op":"set_cell","sheet":"台账","cell":"C2","value":"12000","expect":"10000"},{"op":"set_format","sheet":"台账","cell":"C2","bold":true,"color":"FF0000"},{"op":"replace_text","sheet":"台账","range":"E2:E5","find":"2025年度","replace":"2026年度","all":true}]'
         : 'op 支持 replace / delete / set_font / set_color / set_paragraph_style，可用 all 和 occurrence'
       const lines = [
         '【批注修改任务 · dsh-doc-review v1.6】',
@@ -242,7 +242,7 @@ window.__ModuleLoader__.load({
         '5. 引文先去空白再匹配；多命中按页码与上下文择一，仍不唯一则报“未找到/有歧义”，不猜。',
         '6. 保留原样式、字体、编号、表格、页眉页脚；新增文字与上下文风格一致，不主动改文风。',
         sheetMode
-          ? '7. Excel 按 sheet!cell + expect 现值定位；保留公式与样式，不重算、不导出。helper 返回 sheet_protected 时先问用户是否加 --allow-protected 重试，不得自行加。'
+          ? '7. Excel 按 sheet!cell + expect 现值定位；批注地址是区域（如 E2:E5）时，replace_text 带 range=该区域，并在多处命中时加 all:true；同一单元格的改值与改格式放进同一个 ops 数组一次执行。保留公式与样式，不重算、不导出。helper 返回 sheet_protected 时先问用户是否加 --allow-protected 重试，不得自行加。'
           : '7. Excel 按 sheet!cell + 现值 + 相邻单元格定位；保留公式与样式，不重算、不导出。',
         '8. 不做渲染验证（不启动 WPS/qlmanage/textutil）；用回读断言校验。',
         '9. 措辞歧义按最小改动处理并说明；事实、口径、范围、权限不清才提问。',

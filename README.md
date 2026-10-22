@@ -110,6 +110,8 @@ xlsx_edit.py --file "台账.xlsx" --ops '[{"op":"set_cell","sheet":"数据","cel
 | `replace_text` | `sheet`、`find`、`replace`、`range`、`all`、`occurrence` |
 | `set_format` | `sheet`、`cell` 或 `range`、`font`、`size`、`color`、`bold`、`italic`、`underline`、`number_format`、`align`、`wrap` |
 
+地址可写成 `sheet` + `cell` 分开传，也可直接写 `台账!C2` / `台账!E2:E5`；未知字段会被拒绝并列出支持的字段。
+
 `value_type: auto` 的规则：`=` 开头按公式；`12%` 按数值 0.12；纯数字按数值（前导零如 `001` 保持文本）；`TRUE/FALSE` 按布尔；日期格式单元格 + ISO 日期按日期；其余按文本。
 
 内部完成预检、hash、备份、定位、修改、回读校验、zip 部件守恒检查与原子替换：
@@ -178,7 +180,7 @@ rm ~/.dsh/profiles/web/node_modules/dsh-doc-review
 
 ## 版本与变更
 
-- 插件版本：`0.2.0`
+- 插件版本：`0.2.1`
 - 批注任务协议：`v1.6`
 - 变更记录：GitHub Releases
 

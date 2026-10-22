@@ -343,9 +343,14 @@ def select_matches(matches: list, op: dict) -> list:
             {"cell": f"{m['cell'].parent.title}!{m['cell'].coordinate}", "text": m["text"][:80]}
             for m in matches[:8]
         ]
+        hint = (
+            "；范围内多处命中时加 all:true，或指定 occurrence"
+            if op.get("range")
+            else "；如全部替换请加 all:true，或用 range 限定范围"
+        )
         raise EditError(
             "ambiguous",
-            f"引文在 {len(cells)} 个单元格命中，未指定 all/occurrence/range",
+            f"引文在 {len(cells)} 个单元格命中{hint}",
             "match",
             {"candidates": candidates},
         )
@@ -485,13 +490,29 @@ APPLIERS = {
     "set_format": apply_set_format,
 }
 
+ALLOWED_FIELDS = {
+    "set_cell": {"op", "type", "sheet", "cell", "value", "expect", "value_type"},
+    "replace_text": {"op", "type", "sheet", "find", "replace", "range", "all", "occurrence"},
+    "set_format": {"op", "type", "sheet", "cell", "range", "font", "size", "color", "bold",
+                   "italic", "underline", "number_format", "align", "wrap"},
+}
+
 
 def load_ops(raw: str) -> list:
-    path = Path(raw).expanduser()
-    if path.is_file():
-        raw = path.read_text("utf-8")
+    text = str(raw).strip()
+    if text.startswith(("[", "{")):
+        data_text = text
+    else:
+        path = Path(raw).expanduser()
+        try:
+            is_file = path.is_file()
+        except OSError:
+            is_file = False
+        if not is_file:
+            raise EditError("bad_request", "ops 既不是 JSON，也不是可读的 ops 文件路径", "preflight")
+        data_text = path.read_text("utf-8")
     try:
-        data = json.loads(raw)
+        data = json.loads(data_text)
     except json.JSONDecodeError as exc:
         raise EditError("bad_request", f"ops JSON 解析失败：{exc}", "preflight")
     if isinstance(data, dict):
@@ -505,7 +526,37 @@ def load_ops(raw: str) -> list:
         if kind not in APPLIERS:
             raise EditError("unsupported", f"不支持的 op：{kind}", "preflight",
                             {"supported": sorted(APPLIERS)})
+        unknown = sorted(set(item) - ALLOWED_FIELDS[kind])
+        if unknown:
+            raise EditError(
+                "bad_request",
+                f"{kind} 不支持字段：{', '.join(unknown)}",
+                "preflight",
+                {"supported_fields": sorted(ALLOWED_FIELDS[kind])},
+            )
         item["op"] = kind
+
+    for item in data:
+        kind = item["op"]
+        field = "cell" if kind in {"set_cell", "set_format"} else "range"
+        raw = item.get(field)
+        if raw and "!" in str(raw):
+            prefix, rest = str(raw).split("!", 1)
+            prefix = prefix.strip().strip("'").strip('"')
+            if item.get("sheet") and norm(item["sheet"]) != norm(prefix):
+                raise EditError(
+                    "bad_request",
+                    f"sheet={item['sheet']} 与地址前缀 {prefix} 冲突",
+                    "preflight",
+                )
+            item["sheet"] = item.get("sheet") or prefix
+            item[field] = rest.strip()
+        if not item.get("sheet"):
+            raise EditError(
+                "bad_request",
+                f"{kind} 缺少 sheet；也可把地址写成 sheet!cell（如 台账!C2）",
+                "preflight",
+            )
     return data
 
 
