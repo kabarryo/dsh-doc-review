@@ -21,7 +21,8 @@ window.__ModuleLoader__.load({
     const STYLE_ID = 'dsh-doc-review-style'
     const HIGHLIGHT = 'dsh-doc-review'
     const SHEET_RE = /\.(xlsx|xlsm|xls|csv|tsv)$/i
-    const TEXT_RE = /\.(docx?|pdf)$/i
+    const TEXT_RE = /\.(docx?|pdf|md|markdown|mdx|txt)$/i
+    const MD_RE = /\.(md|markdown|mdx|txt)$/i
 
     const CSS_TEXT = `
 .dr-btn{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 8px;border:1px solid var(--dsw-alias-border-l1);border-radius:6px;background:transparent;color:var(--dsw-alias-label-primary);font-size:12px;line-height:1;cursor:pointer}
@@ -208,12 +209,15 @@ window.__ModuleLoader__.load({
 
     function buildMessage(path, comments) {
       const sheetMode = SHEET_RE.test(path)
-      const helperName = sheetMode ? 'xlsx_edit.py' : 'docx_edit.py'
+      const mdMode = MD_RE.test(path)
+      const helperName = sheetMode ? 'xlsx_edit.py' : mdMode ? 'md_edit.py' : 'docx_edit.py'
       const helperOps = sheetMode
         ? 'op 支持 set_cell / replace_text / set_format；字段：set_cell=cell/value/expect，replace_text=find/replace/range/all，set_format=font/size/color/bold/italic/underline/number_format/align/wrap；set_cell 用 expect 传批注里的现值做校验。示例：[{"op":"set_cell","sheet":"台账","cell":"C2","value":"12000","expect":"10000"},{"op":"set_format","sheet":"台账","cell":"C2","bold":true,"color":"FF0000"},{"op":"replace_text","sheet":"台账","range":"E2:E5","find":"2025年度","replace":"2026年度","all":true}]'
-        : 'op 支持 replace / delete / set_font / set_color / set_paragraph_style，可用 all 和 occurrence'
+        : mdMode
+          ? 'op 支持 replace_text / delete_text / insert_after；引文来自渲染视图，可能不含 ** 等标记，helper 会自动做空白与标记归一化匹配；多命中用 occurrence 或 line 消歧'
+          : 'op 支持 replace / delete / set_font / set_color / set_paragraph_style，可用 all 和 occurrence'
       const lines = [
-        '【批注修改任务 · dsh-doc-review v1.6】',
+        '【批注修改任务 · dsh-doc-review v1.7】',
         `文件：${path}`,
         `批注：${comments.length} 条`,
         '预览：提交时已在右侧栏打开，修改后自动刷新；完成后不要调用 present，报告里给出文件路径即可。',
@@ -226,7 +230,7 @@ window.__ModuleLoader__.load({
           if (item.value) lines.push(`   现值：“${item.value}”`)
           lines.push(`   意见：${item.note}`)
         } else {
-          lines.push(`${no}. [第 ${item.page || '?'} 页]`)
+          lines.push(item.page ? `${no}. [第 ${item.page} 页]` : `${no}. [引文]`)
           lines.push(`   引文：“${item.quote}”`)
           lines.push(`   意见：${item.note}`)
         }
@@ -241,7 +245,9 @@ window.__ModuleLoader__.load({
         '4. 先写临时文件，全部断言通过后再原子替换；中途失败原文件不变。',
         '5. 引文先去空白再匹配；多命中按页码与上下文择一，仍不唯一则报“未找到/有歧义”，不猜。',
         '6. 保留原样式、字体、编号、表格、页眉页脚；新增文字与上下文风格一致，不主动改文风。',
-        sheetMode
+        mdMode
+          ? '7. Markdown 按引文定位到源文件；不重排格式、不改其他段落；替换跨行内标记的片段会随之移除该片段标记，报告注明；表格与代码块按普通文本处理。'
+          : sheetMode
           ? '7. Excel 按 sheet!cell + expect 现值定位；批注地址是区域（如 E2:E5）时，replace_text 带 range=该区域，并在多处命中时加 all:true；同一单元格的改值与改格式放进同一个 ops 数组一次执行。保留公式与样式，不重算、不导出。helper 返回 sheet_protected 时先问用户是否加 --allow-protected 重试，不得自行加。'
           : '7. Excel 按 sheet!cell + 现值 + 相邻单元格定位；保留公式与样式，不重算、不导出。',
         '8. 不做渲染验证（不启动 WPS/qlmanage/textutil）；用回读断言校验。',
