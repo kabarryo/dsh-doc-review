@@ -2,13 +2,14 @@
 
 # dsh-doc-review
 
-DSH 侧栏批注插件。在 Word/PDF 预览中选中文字写修改意见，可连续添加多条，一次提交给 agent；agent 通过附带的 `docx_edit.py` 完成定位、备份、修改、回读与原子替换。Excel 支持按单元格地址添加批注。
+DSH 侧栏批注插件。在 Word、PDF、Markdown 预览中选中文字写修改意见，可连续添加多条，一次提交给 agent；agent 通过附带的 `docx_edit.py` / `md_edit.py` 完成定位、备份、修改、回读与原子替换。Excel 支持按单元格地址添加批注。
 
 批注只描述“改什么”，不直接编辑文件；格式保真由原文件编辑脚本负责。
 
 ## 功能
 
 - **Word / PDF**：右侧栏预览中选中文字，浮出“添加批注”，输入意见；可连续添加多条，最后一并提交。
+- **Markdown / 纯文本**：预览里选中文字添加批注；引文按空白与行内标记两级归一化，能命中带 `**`、`#` 的源文件。
 - **Excel**：手填工作表、单元格地址（如 `B3:F8`）和意见；可附当前值，供 agent 用“地址 + 当前值 + 相邻单元格”定位。
 - 批注按文件绝对路径保存在浏览器 `localStorage`；重开标签或刷新后恢复列表，并按页码 + 引文重新定位高亮。
 - 提交时把全部批注拼成一条消息，通过当前会话的 `session.prompt` 入队。
@@ -26,19 +27,36 @@ DSH 侧栏批注插件。在 Word/PDF 预览中选中文字写修改意见，可
 
 ## 安装
 
-### 要求
+### 推荐：让 agent 安装
+
+把下面这段话交给任意能执行命令的 agent（DSH、Claude Code 等），它会完成克隆、安装、重启与验收：
+
+```
+安装 dsh-doc-review：
+1. git clone https://github.com/kabarryo/dsh-doc-review.git（已有目录则 git pull）
+2. 按 README 的「手动安装」执行 install.sh，DSH_PROFILE_DIR 指向你要用的 profile
+3. 确认 ~/.dsh/doc-review/bin 下有 docx_edit.py、xlsx_edit.py、md_edit.py
+4. 重启对应的 DSH
+5. 在右侧栏打开 docx/pdf/md，确认预览头部出现「批注」
+```
+
+比手动安装省事的地方：agent 能自己定位 `~/.dsh/profiles/*`、判断该装 Web 还是桌面版、补装 Python 依赖、重启并验收。手动安装最容易漏两处——`~/.dsh/doc-review/bin` 下的 helper，以及重启。
+
+### 手动安装
+
+要求：
 
 - DSH 0.2.x（Web 或桌面版 profile）
-- Python 3.10+，并安装 `python-docx`（`python3 -m pip install python-docx`）
-- macOS。预览依赖 DSH 内置的 PDF/Office 预览；其他平台未验证
+- Python 3.10+，并安装依赖：`python3 -m pip install python-docx openpyxl`
+- macOS；预览依赖 DSH 内置的 PDF/Office 预览，其他平台未验证
 
-### 安装到 Web profile
+Web profile：
 
 ```bash
 DSH_PROFILE_DIR="$HOME/.dsh/profiles/web" bash install.sh
 ```
 
-### 安装到桌面版 profile
+桌面版 profile：
 
 ```bash
 DSH_PROFILE_DIR="$HOME/.dsh/profiles/desktop" bash install.sh
@@ -48,22 +66,22 @@ DSH_PROFILE_DIR="$HOME/.dsh/profiles/desktop" bash install.sh
 
 - 把本目录链接进 profile 的 `node_modules`；
 - 在 `package.json` 的 `dsh.profile.bundles` 末尾追加 `dsh-doc-review`（改前备份）；
-- 把 `docx_edit.py`、`doc_review_log.py` 安装到 `~/.dsh/doc-review/bin/`。
+- 把 `docx_edit.py`、`xlsx_edit.py`、`md_edit.py`、`doc_review_log.py` 复制到 `~/.dsh/doc-review/bin/`。
 
 安装后需要重启对应的 DSH（Web 版重启 `dsh web`，桌面版退出重开），client bundle 只在启动时加载。
 
 ## 使用
 
-1. 在右侧栏打开 docx/pdf：Files 标签、交付卡片或对话里的文件链接都可以。
+1. 在右侧栏打开 docx / pdf / md：Files 标签、交付卡片或对话里的文件链接都可以。
 2. 预览头部出现“批注”。
-3. Word/PDF：点“批注”→ 在预览中选中文字 → 浮出“添加批注” → 输入意见 → 保存。
+3. Word/PDF/Markdown：点“批注”→ 在预览中选中文字 → 浮出“添加批注” → 输入意见 → 保存。
 4. Excel：点“批注”→ 填工作表、单元格、当前值（可选）、意见 → 加入批注。
 5. 面板里核对多条意见，点“提交 N 条”。
 
 提交的消息形如：
 
 ```
-【批注修改任务 · dsh-doc-review v1.6】
+【批注修改任务 · dsh-doc-review v1.7】
 文件：/path/to/文件.docx
 批注：2 条
 
